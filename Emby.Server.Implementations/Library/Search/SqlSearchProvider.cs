@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
@@ -28,6 +29,13 @@ public class SqlSearchProvider : IInternalSearchProvider
     private const float PrefixMatchScore = 80f;
     private const float WordPrefixMatchScore = 75f;
     private const float ContainsMatchScore = 50f;
+
+    // In regex mode we can't push the match into SQL, so we fetch a bounded candidate set and
+    // filter in memory. Cap the candidates and bound each match to protect against pathological
+    // patterns (ReDoS) and huge libraries.
+    private const int RegexCandidateCap = 5000;
+
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(250);
 
     private static readonly Guid _placeholderId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
@@ -81,6 +89,11 @@ public class SqlSearchProvider : IInternalSearchProvider
         ArgumentNullException.ThrowIfNull(query);
         ArgumentException.ThrowIfNullOrWhiteSpace(query.SearchTerm);
 
+        if (query.IsRegex)
+        {
+            return await SearchRegexAsync(query, cancellationToken).ConfigureAwait(false);
+        }
+
         var rawSearchTerm = query.SearchTerm.Trim().RemoveDiacritics();
         if (string.IsNullOrEmpty(rawSearchTerm))
         {
@@ -109,7 +122,8 @@ public class SqlSearchProvider : IInternalSearchProvider
                 .Where(e => e.Id != _placeholderId)
                 .Where(e => !e.IsVirtualItem)
                 .Where(e => e.CleanName!.Contains(cleanSearchTerm)
-                    || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeOriginal)));
+                    || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeOriginal))
+                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(cleanSearchTerm))));
 
             dbQuery = ApplyTypeFilter(dbQuery, query.IncludeItemTypes, query.ExcludeItemTypes);
             dbQuery = ApplyMediaTypeFilter(dbQuery, query.MediaTypes);
@@ -139,6 +153,88 @@ public class SqlSearchProvider : IInternalSearchProvider
                 .Select(x => new SearchResult(x.Id, x.Score))
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
+        }
+    }
+
+    private async Task<IReadOnlyList<SearchResult>> SearchRegexAsync(SearchProviderQuery query, CancellationToken cancellationToken)
+    {
+        Regex regex;
+        try
+        {
+            var options = RegexOptions.CultureInvariant;
+            if (query.RegexIgnoreCase)
+            {
+                options |= RegexOptions.IgnoreCase;
+            }
+
+            regex = new Regex(query.SearchTerm, options, _regexMatchTimeout);
+        }
+        catch (ArgumentException)
+        {
+            // Invalid pattern. The API validates and returns 400; this is a defensive fallback.
+            return [];
+        }
+
+        var limit = query.Limit ?? DefaultSearchLimit;
+
+        var dbContext = await _dbProvider.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (dbContext.ConfigureAwait(false))
+        {
+            var dbQuery = dbContext.BaseItems
+                .AsNoTracking()
+                .Where(e => e.Id != _placeholderId)
+                .Where(e => !e.IsVirtualItem);
+
+            dbQuery = ApplyTypeFilter(dbQuery, query.IncludeItemTypes, query.ExcludeItemTypes);
+            dbQuery = ApplyMediaTypeFilter(dbQuery, query.MediaTypes);
+            dbQuery = ApplyParentFilter(dbQuery, query.ParentId);
+            dbQuery = ApplyUserAccessFilter(dbContext, dbQuery, query.UserId);
+
+            // Pull a bounded candidate set (name fields only) and match in memory. The cap means
+            // very large libraries may not be fully scanned in regex mode; this is an accepted
+            // trade-off to keep regex search safe and responsive.
+            var candidates = await dbQuery
+                .Select(e => new { e.Id, e.Name, e.OriginalTitle })
+                .Take(RegexCandidateCap)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var results = new List<SearchResult>(Math.Min(candidates.Length, limit));
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    var name = candidate.Name;
+                    float score;
+                    if (!string.IsNullOrEmpty(name) && regex.IsMatch(name))
+                    {
+                        var match = regex.Match(name);
+                        score = (match.Index == 0 && match.Length == name.Length)
+                            ? ExactMatchScore
+                            : match.Index == 0 ? PrefixMatchScore : ContainsMatchScore;
+                    }
+                    else if (!string.IsNullOrEmpty(candidate.OriginalTitle) && regex.IsMatch(candidate.OriginalTitle))
+                    {
+                        score = ContainsMatchScore;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    results.Add(new SearchResult(candidate.Id, score));
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // Skip pathological inputs rather than failing the whole search.
+                }
+            }
+
+            return results
+                .OrderByDescending(r => r.Score)
+                .ThenBy(r => r.ItemId)
+                .Take(limit)
+                .ToArray();
         }
     }
 

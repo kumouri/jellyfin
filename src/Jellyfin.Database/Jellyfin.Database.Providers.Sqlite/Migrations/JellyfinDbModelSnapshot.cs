@@ -15,7 +15,7 @@ namespace Jellyfin.Server.Implementations.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
 
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.AccessSchedule", b =>
                 {
@@ -1038,6 +1038,37 @@ namespace Jellyfin.Server.Implementations.Migrations
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
+            modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleAlias", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AliasNormalized")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PeopleId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AliasNormalized");
+
+                    b.HasIndex("PeopleId");
+
+                    b.HasIndex("PeopleId", "AliasNormalized")
+                        .IsUnique();
+
+                    b.ToTable("PeopleAliases");
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleBaseItemMap", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -1674,6 +1705,17 @@ namespace Jellyfin.Server.Implementations.Migrations
                     b.Navigation("Item");
                 });
 
+            modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleAlias", b =>
+                {
+                    b.HasOne("Jellyfin.Database.Implementations.Entities.People", "People")
+                        .WithMany("Aliases")
+                        .HasForeignKey("PeopleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("People");
+                });
+
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleBaseItemMap", b =>
                 {
                     b.HasOne("Jellyfin.Database.Implementations.Entities.BaseItemEntity", "Item")
@@ -1784,6 +1826,8 @@ namespace Jellyfin.Server.Implementations.Migrations
 
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.People", b =>
                 {
+                    b.Navigation("Aliases");
+
                     b.Navigation("BaseItems");
                 });
 

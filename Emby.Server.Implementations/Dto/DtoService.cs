@@ -326,6 +326,11 @@ namespace Emby.Server.Implementations.Dto
                 AttachPeople(dto, item, user);
             }
 
+            if (item is Person)
+            {
+                dto.Aliases = _libraryManager.GetPersonAliases(item.Name);
+            }
+
             if (options.ContainsField(ItemFields.PrimaryImageAspectRatio))
             {
                 try
@@ -798,7 +803,8 @@ namespace Emby.Server.Implementations.Dto
                 {
                     Name = person.Name,
                     Role = person.Role,
-                    Type = person.Type
+                    Type = person.Type,
+                    Aliases = person.Aliases
                 };
 
                 if (dictionary.TryGetValue(person.Name, out Person? entity))

@@ -175,16 +175,23 @@ public sealed partial class BaseItemRepository
         {
             var cleanedSearchTerm = filter.SearchTerm.GetCleanValue();
             var originalSearchTerm = filter.SearchTerm;
+            // Bare cleaned term (no wildcard wrapping) for matching against people aliases, so a
+            // search by an actor's alias also surfaces the items they appear in.
+            var aliasSearchTerm = cleanedSearchTerm.Trim('%');
             if (SearchWildcardTerms.Any(f => cleanedSearchTerm.Contains(f)))
             {
                 cleanedSearchTerm = $"%{cleanedSearchTerm.Trim('%')}%";
                 var likeSearchTerm = $"%{originalSearchTerm.Trim('%')}%";
-                baseQuery = baseQuery.Where(e => EF.Functions.Like(e.CleanName!, cleanedSearchTerm) || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm)));
+                baseQuery = baseQuery.Where(e => EF.Functions.Like(e.CleanName!, cleanedSearchTerm)
+                    || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm))
+                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm))));
             }
             else
             {
                 var likeSearchTerm = $"%{originalSearchTerm}%";
-                baseQuery = baseQuery.Where(e => e.CleanName!.Contains(cleanedSearchTerm) || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm)));
+                baseQuery = baseQuery.Where(e => e.CleanName!.Contains(cleanedSearchTerm)
+                    || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm))
+                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm))));
             }
         }
 
@@ -373,7 +380,8 @@ public sealed partial class BaseItemRepository
 
         if (!string.IsNullOrWhiteSpace(filter.Person))
         {
-            baseQuery = baseQuery.Where(e => e.Peoples!.Any(f => f.People.Name == filter.Person));
+            baseQuery = baseQuery.Where(e => e.Peoples!.Any(f => f.People.Name == filter.Person
+                || f.People.Aliases!.Any(a => a.Alias == filter.Person)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.ExternalSeriesId))

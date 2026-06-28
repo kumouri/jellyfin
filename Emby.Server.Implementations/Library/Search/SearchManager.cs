@@ -377,7 +377,9 @@ public class SearchManager : ISearchManager
             ExcludeItemTypes = excludeItemTypes.ToArray(),
             MediaTypes = query.MediaTypes.ToArray(),
             Limit = query.Limit,
-            ParentId = query.ParentId
+            ParentId = query.ParentId,
+            IsRegex = query.IsRegex,
+            RegexIgnoreCase = query.RegexIgnoreCase
         };
     }
 

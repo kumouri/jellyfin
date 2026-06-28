@@ -3424,6 +3424,18 @@ namespace Emby.Server.Implementations.Library
             return _peopleRepository.GetPeopleNamesByItems(itemIds, personTypes);
         }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<string> GetPersonAliases(string name)
+        {
+            return _peopleRepository.GetAliases(name);
+        }
+
+        /// <inheritdoc/>
+        public void UpdatePersonAliases(string name, IReadOnlyList<string> aliases)
+        {
+            _peopleRepository.UpdateAliases(name, aliases);
+        }
+
         public void UpdatePeople(BaseItem item, List<PersonInfo> people)
         {
             UpdatePeopleAsync(item, people, CancellationToken.None).GetAwaiter().GetResult();

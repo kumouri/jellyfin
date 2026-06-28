@@ -39,6 +39,12 @@ namespace MediaBrowser.Model.Dto
         public PersonKind Type { get; set; }
 
         /// <summary>
+        /// Gets or sets the alternate names (aliases / AKA) for this person.
+        /// </summary>
+        /// <value>The aliases.</value>
+        public IReadOnlyList<string> Aliases { get; set; }
+
+        /// <summary>
         /// Gets or sets the primary image tag.
         /// </summary>
         /// <value>The primary image tag.</value>

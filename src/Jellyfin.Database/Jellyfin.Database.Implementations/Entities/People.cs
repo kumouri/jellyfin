@@ -29,4 +29,9 @@ public class People
     /// Gets or Sets the mapping of People to BaseItems.
     /// </summary>
     public ICollection<PeopleBaseItemMap>? BaseItems { get; set; }
+
+    /// <summary>
+    /// Gets or Sets the alternate names (aliases / AKA) for this person.
+    /// </summary>
+    public ICollection<PeopleAlias>? Aliases { get; set; }
 }

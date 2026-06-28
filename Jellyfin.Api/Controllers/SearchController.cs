@@ -75,11 +75,15 @@ public class SearchController : BaseJellyfinApiController
     /// <param name="includeGenres">Optional filter whether to include genres.</param>
     /// <param name="includeStudios">Optional filter whether to include studios.</param>
     /// <param name="includeArtists">Optional filter whether to include artists.</param>
+    /// <param name="isRegex">Optional. Whether to treat the search term as a regular expression.</param>
+    /// <param name="regexIgnoreCase">Optional. Whether regex matching is case-insensitive. Only used when isRegex is true.</param>
     /// <response code="200">Search hint returned.</response>
+    /// <response code="400">The search term is not a valid regular expression.</response>
     /// <returns>An <see cref="SearchHintResult"/> with the results of the search.</returns>
     [HttpGet]
     [Description("Gets search hints based on a search term")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SearchHintResult>> GetSearchHints(
         [FromQuery] int? startIndex,
         [FromQuery] int? limit,
@@ -98,8 +102,31 @@ public class SearchController : BaseJellyfinApiController
         [FromQuery] bool includeMedia = true,
         [FromQuery] bool includeGenres = true,
         [FromQuery] bool includeStudios = true,
-        [FromQuery] bool includeArtists = true)
+        [FromQuery] bool includeArtists = true,
+        [FromQuery] bool isRegex = false,
+        [FromQuery] bool regexIgnoreCase = true)
     {
+        if (isRegex)
+        {
+            // Validate the pattern up front so clients get a clear 400 instead of an empty result.
+            // Regex search is an intentional, opt-in feature; the pattern is executed with a
+            // MatchTimeout in the search provider and only against the caller's own library.
+#pragma warning disable CA3012 // Review code for regular expression injection vulnerabilities
+            try
+            {
+                _ = System.Text.RegularExpressions.Regex.IsMatch(
+                    string.Empty,
+                    searchTerm,
+                    System.Text.RegularExpressions.RegexOptions.None,
+                    TimeSpan.FromMilliseconds(100));
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest("The search term is not a valid regular expression.");
+            }
+#pragma warning restore CA3012
+        }
+
         userId = RequestHelpers.GetUserId(User, userId);
         var result = await _searchManager.GetSearchHintsAsync(new SearchQuery
         {
@@ -121,7 +148,9 @@ public class SearchController : BaseJellyfinApiController
             IsMovie = isMovie,
             IsNews = isNews,
             IsSeries = isSeries,
-            IsSports = isSports
+            IsSports = isSports,
+            IsRegex = isRegex,
+            RegexIgnoreCase = regexIgnoreCase
         }).ConfigureAwait(false);
 
         return new SearchHintResult(result.Items.Select(GetSearchHintResult).ToArray(), result.TotalRecordCount);
