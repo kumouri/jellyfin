@@ -606,6 +606,20 @@ namespace MediaBrowser.Controller.Library
         IReadOnlyDictionary<Guid, IReadOnlyList<string>> GetPeopleNamesByItems(IReadOnlyList<Guid> itemIds, IReadOnlyList<string> personTypes);
 
         /// <summary>
+        /// Gets the aliases (alternate names) for a person, resolved by name.
+        /// </summary>
+        /// <param name="name">The person's name.</param>
+        /// <returns>The distinct aliases for the person, or an empty list.</returns>
+        IReadOnlyList<string> GetPersonAliases(string name);
+
+        /// <summary>
+        /// Replaces the aliases (alternate names) for a person, resolved by name.
+        /// </summary>
+        /// <param name="name">The person's name.</param>
+        /// <param name="aliases">The complete desired set of aliases.</param>
+        void UpdatePersonAliases(string name, IReadOnlyList<string> aliases);
+
+        /// <summary>
         /// Queries the items.
         /// </summary>
         /// <param name="query">The query.</param>

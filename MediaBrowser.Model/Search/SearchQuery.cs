@@ -62,6 +62,16 @@ namespace MediaBrowser.Model.Search
 
         public Guid? ParentId { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the search term is a .NET regular expression.
+        /// </summary>
+        public bool IsRegex { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether regex matching is case-insensitive. Only used when <see cref="IsRegex"/> is <c>true</c>.
+        /// </summary>
+        public bool RegexIgnoreCase { get; set; } = true;
+
         public bool? IsMovie { get; set; }
 
         public bool? IsSeries { get; set; }

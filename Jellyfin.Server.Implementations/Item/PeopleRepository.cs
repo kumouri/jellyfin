@@ -14,6 +14,7 @@ namespace Jellyfin.Server.Implementations.Item;
 #pragma warning disable RS0030 // Do not use banned APIs
 #pragma warning disable CA1304 // Specify CultureInfo
 #pragma warning disable CA1311 // Specify a culture or use an invariant version
+#pragma warning disable CA1307 // Specify StringComparison for clarity (these run as EF LINQ-to-SQL, not in-memory)
 #pragma warning disable CA1862 // Use the 'StringComparison' method overloads to perform case-insensitive string comparisons
 
 /// <summary>
@@ -38,6 +39,7 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         if (!filter.ItemId.IsEmpty())
         {
             dbQuery = dbQuery.Include(p => p.BaseItems!.Where(m => m.ItemId == filter.ItemId))
+                .Include(p => p.Aliases)
                 .OrderBy(e => e.BaseItems!.First(e => e.ItemId == filter.ItemId).ListOrder)
                 .ThenBy(e => e.PersonType)
                 .ThenBy(e => e.Name);
@@ -53,6 +55,7 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
                 .Select(g => g.Min(e => e.Id));
             dbQuery = context.Peoples.AsNoTracking()
                 .Where(p => representativeIds.Contains(p.Id))
+                .Include(p => p.Aliases)
                 .OrderBy(e => e.Name);
         }
 
@@ -201,6 +204,90 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         return result;
     }
 
+    /// <inheritdoc/>
+    public IReadOnlyList<string> GetAliases(string personName)
+    {
+        personName = personName?.Trim() ?? string.Empty;
+        if (personName.Length == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var nameLower = personName.ToLowerInvariant();
+        using var context = _dbProvider.CreateDbContext();
+        return context.PeopleAliases
+            .AsNoTracking()
+            .Where(a => context.Peoples.Any(p => p.Id == a.PeopleId && p.Name.ToLower() == nameLower))
+            .Select(a => a.Alias)
+            .Distinct()
+            .ToArray();
+    }
+
+    /// <inheritdoc/>
+    public void UpdateAliases(string personName, IReadOnlyList<string> aliases)
+    {
+        personName = personName?.Trim() ?? string.Empty;
+        if (personName.Length == 0)
+        {
+            return;
+        }
+
+        var nameLower = personName.ToLowerInvariant();
+        var ownNormalized = personName.GetCleanValue();
+
+        // Normalize + dedupe; drop blanks and any alias equal to the person's own name.
+        var desired = (aliases ?? Array.Empty<string>())
+            .Select(a => (Alias: a?.Trim() ?? string.Empty, Normalized: (a?.Trim() ?? string.Empty).GetCleanValue()))
+            .Where(a => a.Alias.Length > 0 && !string.IsNullOrEmpty(a.Normalized) && a.Normalized != ownNormalized)
+            .GroupBy(a => a.Normalized)
+            .Select(g => g.First())
+            .ToArray();
+
+        using var context = _dbProvider.CreateDbContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        // Per-name keying: apply aliases to every people row sharing the name (e.g. the same
+        // person credited as both Actor and GuestStar) so display + search stay consistent
+        // regardless of which row a cast mapping points at.
+        var personIds = context.Peoples
+            .Where(p => p.Name.ToLower() == nameLower)
+            .Select(p => p.Id)
+            .ToArray();
+
+        if (personIds.Length == 0)
+        {
+            return;
+        }
+
+        var existing = context.PeopleAliases
+            .Where(a => personIds.Contains(a.PeopleId))
+            .ToList();
+
+        foreach (var personId in personIds)
+        {
+            var existingForPerson = existing.Where(e => e.PeopleId == personId).ToList();
+
+            var toRemove = existingForPerson
+                .Where(e => !desired.Any(d => d.Normalized == e.AliasNormalized))
+                .ToList();
+            context.PeopleAliases.RemoveRange(toRemove);
+
+            var toAdd = desired
+                .Where(d => !existingForPerson.Any(e => e.AliasNormalized == d.Normalized))
+                .Select(d => new PeopleAlias
+                {
+                    Id = Guid.NewGuid(),
+                    PeopleId = personId,
+                    Alias = d.Alias,
+                    AliasNormalized = d.Normalized
+                });
+            context.PeopleAliases.AddRange(toAdd);
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+    }
+
     private PersonInfo Map(People people)
     {
         var mapping = people.BaseItems?.FirstOrDefault();
@@ -209,7 +296,8 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
             Id = people.Id,
             Name = people.Name,
             Role = mapping?.Role,
-            SortOrder = mapping?.SortOrder
+            SortOrder = mapping?.SortOrder,
+            Aliases = people.Aliases?.Select(a => a.Alias).ToArray() ?? Array.Empty<string>()
         };
         if (Enum.TryParse<PersonKind>(people.PersonType, out var kind))
         {
@@ -281,7 +369,9 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         if (!string.IsNullOrWhiteSpace(filter.NameContains))
         {
             var nameContainsUpper = filter.NameContains.ToUpper();
-            query = query.Where(e => e.Name.ToUpper().Contains(nameContainsUpper));
+            var nameContainsClean = filter.NameContains.GetCleanValue();
+            query = query.Where(e => e.Name.ToUpper().Contains(nameContainsUpper)
+                || e.Aliases!.Any(a => a.AliasNormalized.Contains(nameContainsClean)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.NameStartsWith))

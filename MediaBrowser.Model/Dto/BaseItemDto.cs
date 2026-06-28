@@ -285,6 +285,12 @@ namespace MediaBrowser.Model.Dto
         public BaseItemPerson[] People { get; set; }
 
         /// <summary>
+        /// Gets or sets the alternate names (aliases / AKA). Only populated for Person items.
+        /// </summary>
+        /// <value>The aliases.</value>
+        public IReadOnlyList<string> Aliases { get; set; }
+
+        /// <summary>
         /// Gets or sets the studios.
         /// </summary>
         /// <value>The studios.</value>

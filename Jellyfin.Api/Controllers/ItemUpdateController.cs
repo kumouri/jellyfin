@@ -104,6 +104,13 @@ public class ItemUpdateController : BaseJellyfinApiController
 
         await UpdateItem(request, item).ConfigureAwait(false);
 
+        // Aliases are stored separately from the per-item cast rewrite so metadata refreshes
+        // can't wipe them. Only Person items carry editable aliases.
+        if (item is Person && request.Aliases is not null)
+        {
+            _libraryManager.UpdatePersonAliases(item.Name, request.Aliases);
+        }
+
         item.OnMetadataChanged();
 
         await item.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None).ConfigureAwait(false);

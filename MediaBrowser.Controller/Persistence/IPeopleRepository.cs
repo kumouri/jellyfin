@@ -34,6 +34,22 @@ public interface IPeopleRepository
     IReadOnlyList<string> GetPeopleNames(InternalPeopleQuery filter);
 
     /// <summary>
+    /// Gets the aliases (alternate names) for a person, resolved by name.
+    /// </summary>
+    /// <param name="personName">The person's name.</param>
+    /// <returns>The distinct aliases for the person, or an empty list.</returns>
+    IReadOnlyList<string> GetAliases(string personName);
+
+    /// <summary>
+    /// Replaces the aliases for a person, resolved by name. This is the only write path for
+    /// aliases; it is intentionally separate from <see cref="UpdatePeople"/> so the per-item cast
+    /// rewrite that runs on every metadata refresh never touches user-entered aliases.
+    /// </summary>
+    /// <param name="personName">The person's name. Aliases are applied to every people row sharing this name.</param>
+    /// <param name="aliases">The complete desired set of aliases.</param>
+    void UpdateAliases(string personName, IReadOnlyList<string> aliases);
+
+    /// <summary>
     /// Gets the distinct people names per item for multiple items efficiently by querying from the mapping table.
     /// </summary>
     /// <param name="itemIds">The item IDs to get people for.</param>

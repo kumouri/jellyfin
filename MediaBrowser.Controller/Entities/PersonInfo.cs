@@ -53,6 +53,15 @@ namespace MediaBrowser.Controller.Entities
 
         public string ImageUrl { get; set; }
 
+        /// <summary>
+        /// Gets or sets the alternate names (aliases / AKA) for this person.
+        /// </summary>
+        /// <remarks>
+        /// This is read-only output populated from the database for display/search. It is never
+        /// written back through the per-item cast update path, so metadata refreshes can't wipe it.
+        /// </remarks>
+        public IReadOnlyList<string> Aliases { get; set; }
+
         public Dictionary<string, string> ProviderIds { get; set; }
 
         /// <summary>

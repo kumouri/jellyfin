@@ -42,4 +42,16 @@ public class SearchProviderQuery
     /// Gets the parent ID to scope the search.
     /// </summary>
     public Guid? ParentId { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether <see cref="SearchTerm"/> should be treated as a .NET
+    /// regular expression and matched in memory rather than as a normalized substring.
+    /// </summary>
+    public bool IsRegex { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether regex matching is case-insensitive. Only used when
+    /// <see cref="IsRegex"/> is <c>true</c>.
+    /// </summary>
+    public bool RegexIgnoreCase { get; init; } = true;
 }
