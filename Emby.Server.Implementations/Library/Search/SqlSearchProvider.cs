@@ -1,4 +1,5 @@
 #pragma warning disable RS0030 // Do not use banned APIs
+#pragma warning disable CA1307 // Specify StringComparison for clarity (alias match runs as EF LINQ-to-SQL)
 #pragma warning disable CA1862 // Use the 'StringComparison' method overloads to perform case-insensitive string comparisons
 
 using System;
