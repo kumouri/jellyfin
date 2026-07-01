@@ -7,6 +7,7 @@ using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Extensions;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Persistence;
+using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,7 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         {
             dbQuery = dbQuery.Include(p => p.BaseItems!.Where(m => m.ItemId == filter.ItemId))
                 .Include(p => p.Aliases)
+                .Include(p => p.Tags)
                 .OrderBy(e => e.BaseItems!.First(e => e.ItemId == filter.ItemId).ListOrder)
                 .ThenBy(e => e.PersonType)
                 .ThenBy(e => e.Name);
@@ -56,6 +58,7 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
             dbQuery = context.Peoples.AsNoTracking()
                 .Where(p => representativeIds.Contains(p.Id))
                 .Include(p => p.Aliases)
+                .Include(p => p.Tags)
                 .OrderBy(e => e.Name);
         }
 
@@ -288,6 +291,90 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         transaction.Commit();
     }
 
+    /// <inheritdoc/>
+    public IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> GetTags(string personName)
+    {
+        personName = personName?.Trim() ?? string.Empty;
+        if (personName.Length == 0)
+        {
+            return Array.Empty<(string, DateTime?, DateTime?)>();
+        }
+
+        var nameLower = personName.ToLowerInvariant();
+        using var context = _dbProvider.CreateDbContext();
+        return context.PeopleTags
+            .AsNoTracking()
+            .Where(t => context.Peoples.Any(p => p.Id == t.PeopleId && p.Name.ToLower() == nameLower))
+            .Select(t => new { t.Tag, t.StartDate, t.EndDate })
+            .Distinct()
+            .AsEnumerable()
+            .Select(t => (t.Tag, t.StartDate, t.EndDate))
+            .ToArray();
+    }
+
+    /// <inheritdoc/>
+    public void UpdateTags(string personName, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags)
+    {
+        personName = personName?.Trim() ?? string.Empty;
+        if (personName.Length == 0)
+        {
+            return;
+        }
+
+        var nameLower = personName.ToLowerInvariant();
+
+        // Normalize + dedupe. The same tag text may recur with different date windows, so the
+        // dedupe key includes the dates.
+        var desired = (tags ?? Array.Empty<(string, DateTime?, DateTime?)>())
+            .Select(t => new
+            {
+                Tag = t.Tag?.Trim() ?? string.Empty,
+                t.StartDate,
+                t.EndDate,
+                Normalized = (t.Tag?.Trim() ?? string.Empty).GetCleanValue()
+            })
+            .Where(t => t.Tag.Length > 0 && !string.IsNullOrEmpty(t.Normalized))
+            .GroupBy(t => new { t.Normalized, t.StartDate, t.EndDate })
+            .Select(g => g.First())
+            .ToArray();
+
+        using var context = _dbProvider.CreateDbContext();
+        using var transaction = context.Database.BeginTransaction();
+
+        // Per-name keying: apply to every people row sharing the name (see UpdateAliases).
+        var personIds = context.Peoples
+            .Where(p => p.Name.ToLower() == nameLower)
+            .Select(p => p.Id)
+            .ToArray();
+
+        if (personIds.Length == 0)
+        {
+            return;
+        }
+
+        // Replace-all: simplest correct behavior for a dated set.
+        context.PeopleTags.RemoveRange(context.PeopleTags.Where(t => personIds.Contains(t.PeopleId)));
+
+        foreach (var personId in personIds)
+        {
+            foreach (var t in desired)
+            {
+                context.PeopleTags.Add(new PeopleTag
+                {
+                    Id = Guid.NewGuid(),
+                    PeopleId = personId,
+                    Tag = t.Tag,
+                    TagNormalized = t.Normalized,
+                    StartDate = t.StartDate,
+                    EndDate = t.EndDate
+                });
+            }
+        }
+
+        context.SaveChanges();
+        transaction.Commit();
+    }
+
     private PersonInfo Map(People people)
     {
         var mapping = people.BaseItems?.FirstOrDefault();
@@ -297,7 +384,8 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
             Name = people.Name,
             Role = mapping?.Role,
             SortOrder = mapping?.SortOrder,
-            Aliases = people.Aliases?.Select(a => a.Alias).ToArray() ?? Array.Empty<string>()
+            Aliases = people.Aliases?.Select(a => a.Alias).ToArray() ?? Array.Empty<string>(),
+            Tags = people.Tags?.Select(t => new PersonTag { Name = t.Tag, StartDate = t.StartDate, EndDate = t.EndDate }).ToArray() ?? Array.Empty<PersonTag>()
         };
         if (Enum.TryParse<PersonKind>(people.PersonType, out var kind))
         {
@@ -370,11 +458,9 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         {
             var nameContainsUpper = filter.NameContains.ToUpper();
             var nameContainsClean = filter.NameContains.GetCleanValue();
-            var personType = itemTypeLookup.BaseItemKindNames[BaseItemKind.Person];
             query = query.Where(e => e.Name.ToUpper().Contains(nameContainsUpper)
                 || e.Aliases!.Any(a => a.AliasNormalized.Contains(nameContainsClean))
-                || context.BaseItems.Any(bi => bi.Type == personType && bi.Name == e.Name
-                    && bi.ItemValues!.Any(iv => iv.ItemValue.Type == ItemValueType.Tags && iv.ItemValue.CleanValue.Contains(nameContainsClean))));
+                || e.Tags!.Any(t => t.TagNormalized.Contains(nameContainsClean)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.NameStartsWith))
@@ -394,12 +480,8 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
 
         if (filter.Tags is { Count: > 0 })
         {
-            var personType = itemTypeLookup.BaseItemKindNames[BaseItemKind.Person];
             var cleanTags = filter.Tags.Select(t => t.GetCleanValue()).ToArray();
-            query = query.Where(e => context.BaseItems.Any(bi =>
-                bi.Type == personType
-                && bi.Name == e.Name
-                && bi.ItemValues!.Any(iv => iv.ItemValue.Type == ItemValueType.Tags && cleanTags.Contains(iv.ItemValue.CleanValue))));
+            query = query.Where(e => e.Tags!.Any(t => cleanTags.Contains(t.TagNormalized)));
         }
 
         return query;

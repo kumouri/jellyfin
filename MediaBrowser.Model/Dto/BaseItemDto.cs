@@ -291,6 +291,12 @@ namespace MediaBrowser.Model.Dto
         public IReadOnlyList<string> Aliases { get; set; }
 
         /// <summary>
+        /// Gets or sets the timed tags (optionally date-bounded). Only populated for Person items.
+        /// </summary>
+        /// <value>The timed tags.</value>
+        public IReadOnlyList<PersonTag> TimedTags { get; set; }
+
+        /// <summary>
         /// Gets or sets the studios.
         /// </summary>
         /// <value>The studios.</value>

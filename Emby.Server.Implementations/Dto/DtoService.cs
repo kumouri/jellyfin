@@ -331,6 +331,9 @@ namespace Emby.Server.Implementations.Dto
             if (item is Person)
             {
                 dto.Aliases = _libraryManager.GetPersonAliases(item.Name);
+                dto.TimedTags = _libraryManager.GetPersonTags(item.Name)
+                    .Select(t => new PersonTag { Name = t.Tag, StartDate = t.StartDate, EndDate = t.EndDate })
+                    .ToArray();
             }
 
             if (options.ContainsField(ItemFields.PrimaryImageAspectRatio))
@@ -806,7 +809,8 @@ namespace Emby.Server.Implementations.Dto
                     Name = person.Name,
                     Role = person.Role,
                     Type = person.Type,
-                    Aliases = person.Aliases
+                    Aliases = person.Aliases,
+                    Tags = person.Tags
                 };
 
                 if (dictionary.TryGetValue(person.Name, out Person? entity))

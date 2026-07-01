@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using Jellyfin.Data.Enums;
+using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 
 namespace MediaBrowser.Controller.Entities
@@ -61,6 +62,11 @@ namespace MediaBrowser.Controller.Entities
         /// written back through the per-item cast update path, so metadata refreshes can't wipe it.
         /// </remarks>
         public IReadOnlyList<string> Aliases { get; set; }
+
+        /// <summary>
+        /// Gets or sets the timed tags (optionally date-bounded) for this person. Read-only output.
+        /// </summary>
+        public IReadOnlyList<PersonTag> Tags { get; set; }
 
         public Dictionary<string, string> ProviderIds { get; set; }
 

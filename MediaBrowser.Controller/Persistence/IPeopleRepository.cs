@@ -50,6 +50,21 @@ public interface IPeopleRepository
     void UpdateAliases(string personName, IReadOnlyList<string> aliases);
 
     /// <summary>
+    /// Gets the timed tags for a person, resolved by name.
+    /// </summary>
+    /// <param name="personName">The person's name.</param>
+    /// <returns>The tags for the person (name + optional start/end dates), or an empty list.</returns>
+    IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> GetTags(string personName);
+
+    /// <summary>
+    /// Replaces the timed tags for a person, resolved by name. Separate from <see cref="UpdatePeople"/>
+    /// so metadata refreshes never touch user-entered tags.
+    /// </summary>
+    /// <param name="personName">The person's name. Tags are applied to every people row sharing this name.</param>
+    /// <param name="tags">The complete desired set of tags (name + optional start/end dates).</param>
+    void UpdateTags(string personName, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags);
+
+    /// <summary>
     /// Gets the distinct people names per item for multiple items efficiently by querying from the mapping table.
     /// </summary>
     /// <param name="itemIds">The item IDs to get people for.</param>

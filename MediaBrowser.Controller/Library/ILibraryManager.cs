@@ -620,6 +620,20 @@ namespace MediaBrowser.Controller.Library
         void UpdatePersonAliases(string name, IReadOnlyList<string> aliases);
 
         /// <summary>
+        /// Gets the timed tags for a person, resolved by name.
+        /// </summary>
+        /// <param name="name">The person's name.</param>
+        /// <returns>The tags for the person (name + optional start/end dates), or an empty list.</returns>
+        IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> GetPersonTags(string name);
+
+        /// <summary>
+        /// Replaces the timed tags for a person, resolved by name.
+        /// </summary>
+        /// <param name="name">The person's name.</param>
+        /// <param name="tags">The complete desired set of tags (name + optional start/end dates).</param>
+        void UpdatePersonTags(string name, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags);
+
+        /// <summary>
         /// Queries the items.
         /// </summary>
         /// <param name="query">The query.</param>
