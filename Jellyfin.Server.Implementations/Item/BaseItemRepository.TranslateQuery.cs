@@ -184,14 +184,22 @@ public sealed partial class BaseItemRepository
                 var likeSearchTerm = $"%{originalSearchTerm.Trim('%')}%";
                 baseQuery = baseQuery.Where(e => EF.Functions.Like(e.CleanName!, cleanedSearchTerm)
                     || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm))
-                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm))));
+                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm)))
+                    || e.Peoples!.Any(m => m.People.Tags!.Any(t => t.TagNormalized.Contains(aliasSearchTerm)
+                        && (e.PremiereDate == null
+                            || ((t.StartDate == null || e.PremiereDate >= t.StartDate)
+                                && (t.EndDate == null || e.PremiereDate <= t.EndDate))))));
             }
             else
             {
                 var likeSearchTerm = $"%{originalSearchTerm}%";
                 baseQuery = baseQuery.Where(e => e.CleanName!.Contains(cleanedSearchTerm)
                     || (e.OriginalTitle != null && EF.Functions.Like(e.OriginalTitle, likeSearchTerm))
-                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm))));
+                    || e.Peoples!.Any(m => m.People.Aliases!.Any(a => a.AliasNormalized.Contains(aliasSearchTerm)))
+                    || e.Peoples!.Any(m => m.People.Tags!.Any(t => t.TagNormalized.Contains(aliasSearchTerm)
+                        && (e.PremiereDate == null
+                            || ((t.StartDate == null || e.PremiereDate >= t.StartDate)
+                                && (t.EndDate == null || e.PremiereDate <= t.EndDate))))));
             }
         }
 

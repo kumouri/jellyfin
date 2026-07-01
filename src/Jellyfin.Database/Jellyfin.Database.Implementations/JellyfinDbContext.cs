@@ -149,6 +149,11 @@ public class JellyfinDbContext(DbContextOptions<JellyfinDbContext> options, ILog
     public DbSet<PeopleAlias> PeopleAliases => Set<PeopleAlias>();
 
     /// <summary>
+    /// Gets the <see cref="DbSet{TEntity}"/> containing the people tags.
+    /// </summary>
+    public DbSet<PeopleTag> PeopleTags => Set<PeopleTag>();
+
+    /// <summary>
     /// Gets the <see cref="DbSet{TEntity}"/> containing linked children relationships.
     /// </summary>
     public DbSet<LinkedChildEntity> LinkedChildren => Set<LinkedChildEntity>();

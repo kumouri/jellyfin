@@ -45,6 +45,12 @@ namespace MediaBrowser.Model.Dto
         public IReadOnlyList<string> Aliases { get; set; }
 
         /// <summary>
+        /// Gets or sets the timed tags (optionally bounded by start/end dates) for this person.
+        /// </summary>
+        /// <value>The timed tags.</value>
+        public IReadOnlyList<PersonTag> Tags { get; set; }
+
+        /// <summary>
         /// Gets or sets the primary image tag.
         /// </summary>
         /// <value>The primary image tag.</value>

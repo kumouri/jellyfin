@@ -1099,6 +1099,40 @@ namespace Jellyfin.Server.Implementations.Migrations
                     b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
                 });
 
+            modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PeopleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TagNormalized")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PeopleId");
+
+                    b.HasIndex("TagNormalized");
+
+                    b.ToTable("PeopleTags");
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -1735,6 +1769,17 @@ namespace Jellyfin.Server.Implementations.Migrations
                     b.Navigation("People");
                 });
 
+            modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.PeopleTag", b =>
+                {
+                    b.HasOne("Jellyfin.Database.Implementations.Entities.People", "People")
+                        .WithMany("Tags")
+                        .HasForeignKey("PeopleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("People");
+                });
+
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.Permission", b =>
                 {
                     b.HasOne("Jellyfin.Database.Implementations.Entities.User", null)
@@ -1829,6 +1874,8 @@ namespace Jellyfin.Server.Implementations.Migrations
                     b.Navigation("Aliases");
 
                     b.Navigation("BaseItems");
+
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("Jellyfin.Database.Implementations.Entities.User", b =>

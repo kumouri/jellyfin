@@ -111,6 +111,13 @@ public class ItemUpdateController : BaseJellyfinApiController
             _libraryManager.UpdatePersonAliases(item.Name, request.Aliases);
         }
 
+        if (item is Person && request.TimedTags is not null)
+        {
+            _libraryManager.UpdatePersonTags(
+                item.Name,
+                request.TimedTags.Select(t => (t.Name, t.StartDate, t.EndDate)).ToList());
+        }
+
         item.OnMetadataChanged();
 
         await item.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None).ConfigureAwait(false);

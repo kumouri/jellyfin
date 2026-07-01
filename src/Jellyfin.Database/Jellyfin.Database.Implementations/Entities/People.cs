@@ -34,4 +34,9 @@ public class People
     /// Gets or Sets the alternate names (aliases / AKA) for this person.
     /// </summary>
     public ICollection<PeopleAlias>? Aliases { get; set; }
+
+    /// <summary>
+    /// Gets or Sets the (optionally date-bounded) tags for this person.
+    /// </summary>
+    public ICollection<PeopleTag>? Tags { get; set; }
 }

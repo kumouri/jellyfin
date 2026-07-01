@@ -3436,6 +3436,18 @@ namespace Emby.Server.Implementations.Library
             _peopleRepository.UpdateAliases(name, aliases);
         }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> GetPersonTags(string name)
+        {
+            return _peopleRepository.GetTags(name);
+        }
+
+        /// <inheritdoc/>
+        public void UpdatePersonTags(string name, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags)
+        {
+            _peopleRepository.UpdateTags(name, tags);
+        }
+
         public void UpdatePeople(BaseItem item, List<PersonInfo> people)
         {
             UpdatePeopleAsync(item, people, CancellationToken.None).GetAwaiter().GetResult();
