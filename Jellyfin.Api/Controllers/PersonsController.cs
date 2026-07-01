@@ -65,6 +65,7 @@ public class PersonsController : BaseJellyfinApiController
     /// <param name="parentId">Optional. Specify this to localize the search to a specific library. Omit to use the root.</param>
     /// <param name="appearsInItemId">Optional. If specified, person results will be filtered on items related to said persons.</param>
     /// <param name="userId">User id.</param>
+    /// <param name="tags">Optional. If specified, results will be filtered to include only those with the specified tags. Allows multiple, pipe-delimited.</param>
     /// <param name="enableImages">Optional, include image information in output.</param>
     /// <response code="200">Persons returned.</response>
     /// <returns>An <see cref="OkResult"/> containing the queryresult of persons.</returns>
@@ -88,6 +89,7 @@ public class PersonsController : BaseJellyfinApiController
         [FromQuery] Guid? parentId,
         [FromQuery] Guid? appearsInItemId,
         [FromQuery] Guid? userId,
+        [FromQuery, ModelBinder(typeof(PipeDelimitedCollectionModelBinder))] string[] tags,
         [FromQuery] bool? enableImages = true)
     {
         userId = RequestHelpers.GetUserId(User, userId);
@@ -112,7 +114,8 @@ public class PersonsController : BaseJellyfinApiController
             AppearsInItemId = appearsInItemId ?? Guid.Empty,
             ParentId = parentId,
             StartIndex = startIndex,
-            Limit = limit ?? 0
+            Limit = limit ?? 0,
+            Tags = tags
         });
 
         return new QueryResult<BaseItemDto>(

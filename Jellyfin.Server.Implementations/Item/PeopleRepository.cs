@@ -370,8 +370,11 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         {
             var nameContainsUpper = filter.NameContains.ToUpper();
             var nameContainsClean = filter.NameContains.GetCleanValue();
+            var personType = itemTypeLookup.BaseItemKindNames[BaseItemKind.Person];
             query = query.Where(e => e.Name.ToUpper().Contains(nameContainsUpper)
-                || e.Aliases!.Any(a => a.AliasNormalized.Contains(nameContainsClean)));
+                || e.Aliases!.Any(a => a.AliasNormalized.Contains(nameContainsClean))
+                || context.BaseItems.Any(bi => bi.Type == personType && bi.Name == e.Name
+                    && bi.ItemValues!.Any(iv => iv.ItemValue.Type == ItemValueType.Tags && iv.ItemValue.CleanValue.Contains(nameContainsClean))));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.NameStartsWith))
@@ -387,6 +390,16 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         if (!string.IsNullOrWhiteSpace(filter.NameStartsWithOrGreater))
         {
             query = query.Where(e => e.Name.CompareTo(filter.NameStartsWithOrGreater.ToLowerInvariant()) >= 0);
+        }
+
+        if (filter.Tags is { Count: > 0 })
+        {
+            var personType = itemTypeLookup.BaseItemKindNames[BaseItemKind.Person];
+            var cleanTags = filter.Tags.Select(t => t.GetCleanValue()).ToArray();
+            query = query.Where(e => context.BaseItems.Any(bi =>
+                bi.Type == personType
+                && bi.Name == e.Name
+                && bi.ItemValues!.Any(iv => iv.ItemValue.Type == ItemValueType.Tags && cleanTags.Contains(iv.ItemValue.CleanValue))));
         }
 
         return query;
