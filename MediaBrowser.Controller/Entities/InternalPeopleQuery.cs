@@ -51,5 +51,11 @@ namespace MediaBrowser.Controller.Entities
         public User User { get; set; }
 
         public bool? IsFavorite { get; set; }
+
+        /// <summary>
+        /// Gets or sets the tags to filter people by. A person matches if their Person item
+        /// carries any of these tags.
+        /// </summary>
+        public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
     }
 }
