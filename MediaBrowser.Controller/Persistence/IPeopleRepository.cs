@@ -65,6 +65,12 @@ public interface IPeopleRepository
     void UpdateTags(string personName, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags);
 
     /// <summary>
+    /// Gets the distinct tag names used across all people.
+    /// </summary>
+    /// <returns>The distinct tag names, ordered alphabetically.</returns>
+    IReadOnlyList<string> GetAllTagNames();
+
+    /// <summary>
     /// Gets the distinct people names per item for multiple items efficiently by querying from the mapping table.
     /// </summary>
     /// <param name="itemIds">The item IDs to get people for.</param>

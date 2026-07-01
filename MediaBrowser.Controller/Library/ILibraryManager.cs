@@ -634,6 +634,12 @@ namespace MediaBrowser.Controller.Library
         void UpdatePersonTags(string name, IReadOnlyList<(string Tag, DateTime? StartDate, DateTime? EndDate)> tags);
 
         /// <summary>
+        /// Gets the distinct tag names used across all people.
+        /// </summary>
+        /// <returns>The distinct tag names, ordered alphabetically.</returns>
+        IReadOnlyList<string> GetAllPersonTags();
+
+        /// <summary>
         /// Queries the items.
         /// </summary>
         /// <param name="query">The query.</param>
