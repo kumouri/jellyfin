@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Jellyfin.Api.Extensions;
@@ -124,6 +125,18 @@ public class PersonsController : BaseJellyfinApiController
             peopleItems.Items
                 .Select(person => _dtoService.GetItemByNameDto(person, dtoOptions, null, user))
                 .ToArray());
+    }
+
+    /// <summary>
+    /// Gets the distinct tag names used across all people.
+    /// </summary>
+    /// <response code="200">Person tags returned.</response>
+    /// <returns>An <see cref="OkResult"/> containing the distinct person tag names.</returns>
+    [HttpGet("Tags")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<IReadOnlyList<string>> GetPersonTags()
+    {
+        return Ok(_libraryManager.GetAllPersonTags());
     }
 
     /// <summary>

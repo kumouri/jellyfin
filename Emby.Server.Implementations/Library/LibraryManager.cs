@@ -3448,6 +3448,12 @@ namespace Emby.Server.Implementations.Library
             _peopleRepository.UpdateTags(name, tags);
         }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<string> GetAllPersonTags()
+        {
+            return _peopleRepository.GetAllTagNames();
+        }
+
         public void UpdatePeople(BaseItem item, List<PersonInfo> people)
         {
             UpdatePeopleAsync(item, people, CancellationToken.None).GetAwaiter().GetResult();

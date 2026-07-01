@@ -375,6 +375,18 @@ public class PeopleRepository(IDbContextFactory<JellyfinDbContext> dbProvider, I
         transaction.Commit();
     }
 
+    /// <inheritdoc/>
+    public IReadOnlyList<string> GetAllTagNames()
+    {
+        using var context = _dbProvider.CreateDbContext();
+        return context.PeopleTags
+            .AsNoTracking()
+            .GroupBy(t => t.TagNormalized)
+            .Select(g => g.Min(t => t.Tag)!)
+            .OrderBy(t => t)
+            .ToArray();
+    }
+
     private PersonInfo Map(People people)
     {
         var mapping = people.BaseItems?.FirstOrDefault();
